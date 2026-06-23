@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OrbitalWatch — Satellite Telemetry Platform</title>
+
+  <!--
+    Cesium.js: The industry-standard WebGL globe library.
+    Used by NASA, ESA, and commercial aerospace for mission visualization.
+    It handles 3D rendering, terrain, camera controls, and entity management.
+    We load it from CDN so we don't have to bundle it ourselves.
+  -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Cesium.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+
+  <!--
+    D3.js: The gold standard for data visualization on the web.
+    We use it for the telemetry time-series charts (altitude over time).
+    D3 gives you full control over SVG elements — much more powerful than
+    chart libraries that just give you pre-built chart types.
+  -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header>
+    <div class="logo">
+      <span class="logo-icon">◎</span>
+      <span class="logo-text">OrbitalWatch</span>
+    </div>
+    <div class="header-controls">
+      <label for="group-select">Constellation:</label>
+      <select id="group-select">
+        <option value="starlink">Starlink</option>
+        <option value="gps">GPS</option>
+        <option value="iss">ISS / Space Stations</option>
+      </select>
+      <button id="refresh-btn">↻ Refresh</button>
+      <span id="last-updated"></span>
+    </div>
+  </header>
+
+  <!-- ===== MAIN LAYOUT ===== -->
+  <main>
+
+    <!-- LEFT: Satellite list panel -->
+    <aside id="satellite-list-panel">
+      <h2>Satellites <span id="sat-count"></span></h2>
+      <input type="text" id="sat-search" placeholder="Filter by name..." />
+      <ul id="satellite-list"></ul>
+    </aside>
+
+    <!-- CENTER: Cesium 3D globe -->
+    <div id="cesium-container">
+      <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading satellite constellation...</p>
+      </div>
+    </div>
+
+    <!-- RIGHT: Detail panel with tabs -->
+    <aside id="telemetry-panel">
+      <div id="right-panel-tabs">
+        <button class="tab-btn active" data-tab="telemetry-tab">Telemetry</button>
+        <button class="tab-btn" data-tab="conjunctions-tab">Conjunctions</button>
+        <button class="tab-btn" data-tab="passes-tab">Passes</button>
+      </div>
+
+      <!-- TELEMETRY TAB -->
+      <div id="telemetry-tab" class="tab-content">
+        <div id="no-selection-msg">
+          <p>← Click a satellite<br/>to view telemetry</p>
+        </div>
+
+        <div id="telemetry-content" style="display:none;">
+          <h2 id="selected-sat-name"></h2>
+
+          <div id="status-badge">
+            <span id="status-dot"></span>
+            <span id="status-text"></span>
+          </div>
+          <p id="status-message"></p>
+
+          <div class="stat-grid">
+            <div class="stat">
+              <span class="stat-label">Altitude</span>
+              <span class="stat-value" id="stat-alt">—</span>
+              <span class="stat-unit">km</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Latitude</span>
+              <span class="stat-value" id="stat-lat">—</span>
+              <span class="stat-unit">°</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Longitude</span>
+              <span class="stat-value" id="stat-lon">—</span>
+              <span class="stat-unit">°</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Inclination</span>
+              <span class="stat-value" id="stat-inc">—</span>
+              <span class="stat-unit">°</span>
+            </div>
+          </div>
+
+          <div id="chart-section">
+            <h3>Altitude (24h)</h3>
+            <div id="altitude-chart"></div>
+          </div>
+
+          <div id="speed-chart-section">
+            <h3>Speed (24h)</h3>
+            <div id="speed-chart"></div>
+          </div>
+
+          <div id="anomaly-summary">
+            <h3>Anomaly Detection</h3>
+            <p id="anomaly-count-text"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONJUNCTIONS TAB -->
+      <div id="conjunctions-tab" class="tab-content" style="display:none;">
+        <h3>Conjunction Assessment</h3>
+        <p class="tab-description">Screens satellite pairs for close approaches within the selected constellation.</p>
+        <div id="conjunction-controls">
+          <div class="control-row">
+            <label>Threshold <input type="number" id="conj-threshold" value="25" min="0.1" max="100" step="0.1"> km</label>
+          </div>
+          <button id="run-conjunction-btn">Screen Conjunctions</button>
+        </div>
+        <div id="conjunction-loading" class="loading-msg" style="display:none;">
+          <div class="mini-spinner"></div>
+          <span>Screening satellite pairs...</span>
+        </div>
+        <div id="conjunction-results" style="display:none;">
+          <p id="conjunction-count-text"></p>
+          <ul id="conjunction-list"></ul>
+        </div>
+      </div>
+
+      <!-- PASSES TAB -->
+      <div id="passes-tab" class="tab-content" style="display:none;">
+        <h3>Ground Station Passes</h3>
+        <p class="tab-description">Predict satellite visibility windows from a ground station location.</p>
+        <div id="ground-station-controls">
+          <div class="control-row gs-coords">
+            <label>Lat <input type="number" id="gs-lat" value="34.05" step="0.01" min="-90" max="90"></label>
+            <label>Lon <input type="number" id="gs-lon" value="-118.24" step="0.01" min="-180" max="180"></label>
+          </div>
+          <div class="control-row gs-buttons">
+            <button id="place-gs-btn">Place on Globe</button>
+            <button id="predict-passes-btn">Predict Passes</button>
+          </div>
+        </div>
+        <div id="passes-loading" class="loading-msg" style="display:none;">
+          <div class="mini-spinner"></div>
+          <span>Computing visibility windows...</span>
+        </div>
+        <div id="passes-results" style="display:none;">
+          <p id="passes-count-text"></p>
+          <div id="pass-timeline"></div>
+          <ul id="passes-list"></ul>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

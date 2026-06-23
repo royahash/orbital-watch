@@ -1,0 +1,593 @@
+/*
+  style.css — OrbitalWatch Dashboard
+  Dark theme to match mission control aesthetics.
+  Three-column layout: satellite list | globe | telemetry panel
+*/
+
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-dark:     #0a0e1a;
+  --bg-panel:    #0f1525;
+  --bg-card:     #161d30;
+  --border:      #1e2d4a;
+  --accent-blue: #2979ff;
+  --accent-cyan: #00e5ff;
+  --accent-green:#00e676;
+  --accent-amber:#ffab00;
+  --accent-red:  #ff1744;
+  --text-primary:#e8eaf6;
+  --text-muted:  #546e8a;
+  --font-mono:   'Courier New', monospace;
+}
+
+body {
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ===== HEADER ===== */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 48px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-icon {
+  font-size: 20px;
+  color: var(--accent-cyan);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.logo-text {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-controls label { color: var(--text-muted); }
+
+select, input[type="text"] {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+button#refresh-btn {
+  background: transparent;
+  border: 1px solid var(--accent-blue);
+  color: var(--accent-blue);
+  padding: 5px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+button#refresh-btn:hover {
+  background: var(--accent-blue);
+  color: white;
+}
+
+#last-updated { color: var(--text-muted); font-size: 11px; font-family: var(--font-mono); }
+
+/* ===== MAIN 3-COLUMN LAYOUT ===== */
+main {
+  display: grid;
+  grid-template-columns: 220px 1fr 280px;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ===== LEFT PANEL: Satellite List ===== */
+#satellite-list-panel {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#satellite-list-panel h2 {
+  padding: 12px 14px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#sat-count {
+  font-size: 10px;
+  color: var(--accent-cyan);
+}
+
+#sat-search {
+  margin: 8px;
+  width: calc(100% - 16px);
+  flex-shrink: 0;
+}
+
+#satellite-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#satellite-list li {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#satellite-list li:hover { background: var(--bg-card); }
+
+#satellite-list li.active {
+  background: var(--bg-card);
+  border-left: 3px solid var(--accent-cyan);
+}
+
+.sat-name {
+  font-weight: 600;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sat-alt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent-cyan);
+  margin-top: 2px;
+}
+
+/* ===== CENTER: Cesium Globe ===== */
+#cesium-container {
+  position: relative;
+  overflow: hidden;
+}
+
+#cesium-container canvas { display: block; }
+
+#loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 5;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent-cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== RIGHT PANEL ===== */
+#telemetry-panel {
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tab navigation */
+#right-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover { color: var(--text-primary); }
+
+.tab-btn.active {
+  color: var(--accent-cyan);
+  border-bottom-color: var(--accent-cyan);
+}
+
+.tab-content {
+  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tab-description {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+#no-selection-msg {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+#telemetry-content h2 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* Status badge */
+#status-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+#status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+#status-dot.nominal { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+#status-dot.watch   { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); }
+#status-dot.alert   { background: var(--accent-red);   box-shadow: 0 0 8px var(--accent-red); animation: blink 1s ease-in-out infinite; }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+#status-text { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+#status-text.nominal { color: var(--accent-green); }
+#status-text.watch   { color: var(--accent-amber); }
+#status-text.alert   { color: var(--accent-red); }
+
+#status-message {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* Stat grid */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.stat {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.stat-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* Chart sections */
+#chart-section, #speed-chart-section, #anomaly-summary {
+  margin-bottom: 20px;
+}
+
+#chart-section h3, #speed-chart-section h3, #anomaly-summary h3 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+#altitude-chart svg, #speed-chart svg {
+  display: block;
+}
+
+/* D3 chart styles */
+.chart-line { fill: none; stroke-width: 1.5; }
+.chart-line.altitude { stroke: var(--accent-cyan); }
+.chart-line.speed    { stroke: var(--accent-blue); }
+
+.chart-dot { r: 3; }
+.chart-dot.nominal { fill: var(--accent-cyan); }
+.chart-dot.anomaly { fill: var(--accent-red); }
+
+.axis text { fill: var(--text-muted); font-size: 9px; }
+.axis path, .axis line { stroke: var(--border); }
+
+.chart-grid line {
+  stroke: var(--border);
+  stroke-dasharray: 2,3;
+  opacity: 0.5;
+}
+
+/* Anomaly summary */
+#anomaly-count-text {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ===== SHARED CONTROLS ===== */
+.control-row {
+  margin-bottom: 8px;
+}
+
+.control-row label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.control-row input[type="number"] {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  width: 80px;
+}
+
+.gs-coords {
+  display: flex;
+  gap: 8px;
+}
+
+.gs-coords label { flex: 1; }
+.gs-coords input[type="number"] { width: 100%; margin-top: 4px; display: block; }
+
+.gs-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+#conjunction-controls button,
+#ground-station-controls button {
+  background: transparent;
+  border: 1px solid var(--accent-blue);
+  color: var(--accent-blue);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.2s;
+  flex: 1;
+}
+
+#conjunction-controls button:hover,
+#ground-station-controls button:hover {
+  background: var(--accent-blue);
+  color: white;
+}
+
+#place-gs-btn {
+  border-color: var(--accent-amber) !important;
+  color: var(--accent-amber) !important;
+}
+#place-gs-btn:hover {
+  background: var(--accent-amber) !important;
+  color: var(--bg-dark) !important;
+}
+#place-gs-btn.placing {
+  background: var(--accent-amber) !important;
+  color: var(--bg-dark) !important;
+}
+
+.loading-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.mini-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ===== CONJUNCTION LIST ===== */
+#conjunction-list, #passes-list {
+  list-style: none;
+  margin-top: 8px;
+}
+
+#conjunction-list li {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--bg-card);
+  border-radius: 4px;
+  border-left: 3px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#conjunction-list li:hover { background: #1a2340; }
+
+#conjunction-list li.severity-critical { border-left-color: var(--accent-red); }
+#conjunction-list li.severity-warning  { border-left-color: var(--accent-amber); }
+#conjunction-list li.severity-caution  { border-left-color: #ffd600; }
+
+.conj-pair {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conj-arrow { color: var(--text-muted); font-size: 10px; }
+
+.conj-details {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  display: flex;
+  justify-content: space-between;
+}
+
+.conj-dca { font-weight: 700; }
+.conj-dca.critical { color: var(--accent-red); }
+.conj-dca.warning  { color: var(--accent-amber); }
+.conj-dca.caution  { color: #ffd600; }
+
+#conjunction-count-text, #passes-count-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ===== PASSES LIST ===== */
+#passes-list li {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--bg-card);
+  border-radius: 4px;
+  border-left: 3px solid var(--accent-blue);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#passes-list li:hover { background: #1a2340; }
+
+#passes-list li.high-pass { border-left-color: var(--accent-green); }
+#passes-list li.mid-pass  { border-left-color: var(--accent-cyan); }
+#passes-list li.low-pass  { border-left-color: var(--accent-blue); }
+
+.pass-sat-name {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pass-details {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  display: flex;
+  justify-content: space-between;
+}
+
+.pass-elevation {
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+/* Pass timeline (D3) */
+#pass-timeline {
+  margin-bottom: 12px;
+}
+
+#pass-timeline svg { display: block; }
+
+.pass-bar { cursor: pointer; transition: opacity 0.15s; }
+.pass-bar:hover { opacity: 0.8; }
+
+/* ===== GROUND STATION MARKER ===== */
+.gs-label {
+  color: var(--accent-amber);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
