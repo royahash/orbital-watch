@@ -19,14 +19,9 @@
 // CONFIGURATION
 // ─────────────────────────────────────────────────────
 
-const API_BASE = "http://localhost:8000";   // Your FastAPI server
+const API_BASE = "https://orbital-watch.onrender.com";
 
-/**
- * Cesium Ion access token.
- * Sign up free at https://ion.cesium.com to get yours.
- * The free tier is plenty for a portfolio project.
- */
-Cesium.Ion.defaultAccessToken = "YOUR_CESIUM_ION_TOKEN_HERE";
+Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI3MmQzNWExMC1jNjNmLTRiNGItOWVkNS03YWZjNjY2NjVmZWQiLCJpZCI6NDU2OTQzLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODQxNjczNTR9.bgQW5ssAv06LQti8KUTTOWYUJRhKMXc6Q2jMaKNyg1s";
 
 
 // ─────────────────────────────────────────────────────
